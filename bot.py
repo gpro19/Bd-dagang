@@ -70,9 +70,11 @@ def start(update: Update, context: CallbackContext):
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
 
+
+
 def broadcast(update: Update, context: CallbackContext):
     dtset = json.loads(userDB['set'])
-    
+
     if update.message.from_user.id not in dtset['admin']:
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
@@ -82,17 +84,40 @@ def broadcast(update: Update, context: CallbackContext):
         update.message.reply_text("Silahkan masukkan pesan yang ingin disiarkan.")
         return
 
+    # Check if there are users to send the message to
+    if not userDB['users']:
+        update.message.reply_text("Tidak ada pengguna yang terdaftar untuk menerima pesan.")
+        return
+
+    successful = 0
+    failed = 0
+    sent_users = set()  # To track users who have already received the message
+
     for user_id in userDB['users']:
+        if user_id in sent_users:
+            continue  # Skip if the message has already been sent to this user
         try:
             context.bot.send_message(chat_id=user_id, text=message)
+            successful += 1
+            sent_users.add(user_id)  # Mark as sent
         except Exception as e:
+            failed += 1
             print(f"Failed to send message to {user_id}: {e}")
             context.bot.send_message(chat_id=dtset['admin'][0], text=f"Gagal mengirim pesan ke {user_id}")
 
-    update.message.reply_text("Pesan berhasil disiarkan kepada semua pengguna.")
+    # Styled response message
+    reply_message = (
+        f"<b>Pesan berhasil disiarkan kepada {successful} pengguna.</b>"
+        f"\n<i>Gagal mengirim pesan kepada {failed} pengguna.</i>"
+    )
 
+    update.message.reply_html(reply_message)
+    
+    
+    
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
+    add_user(msgbot.from_user.id)  # Add user to the list
     step = get_from_cache(msgbot.from_user.id, 'step')
     if step:
         return
@@ -192,6 +217,29 @@ def ban_user(update: Update, context: CallbackContext):
     else:
         update.message.reply_text("Silakan masukkan ID pengguna yang ingin diblokir.")
 
+
+def reload_admins(update: Update, context: CallbackContext):
+    dtset = json.loads(userDB['set'])
+    
+    try:
+        # Fetch the chat member list from the channel
+        members = context.bot.get_chat_administrators(MENFES)
+        new_admins = [member.user.id for member in members]
+        
+        # Update the admin list in the userDB
+        dtset['admin'] = new_admins
+        set_value('set', json.dumps(dtset))
+        
+        # Respond to the admin with styled message
+        admin_list = '\n'.join([f"<b>ID Admin:</b> <code>{admin_id}</code>" for admin_id in new_admins])
+        update.message.reply_html(
+            f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}"
+        )
+    except Exception as e:
+        update.message.reply_text("Gagal memperbarui daftar admin.")
+        print(f"Error while reloading admins: {e}")
+
+
 @app.route('/')
 def index():
     return jsonify({"message": "Bot is running! by @MzCoder"})
@@ -208,6 +256,9 @@ def main():
     dp.add_handler(CommandHandler("setjeda", set_jeda))  # Adding the set jeda command
     dp.add_handler(CommandHandler("ban", ban_user))  # Adding the ban command
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
+    # Add this line to your main function to register the new command
+    dp.add_handler(CommandHandler("reload", reload_admins))
+
 
     # Jalankan bot di thread terpisah
     updater.start_polling()
