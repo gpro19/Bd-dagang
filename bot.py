@@ -3,16 +3,12 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import json
 import time
 import re
-from flask import Flask
+from flask import Flask, jsonify
 import threading
 
 app = Flask(__name__)
+
 # Constants
-#MENFES = "-1001247979116"
-#GRUP = "-1001802952248"
-#BOTLOGS = "-1001386322689"
-
-
 MENFES = "-1002486499773"
 GRUP = "-1002441207941"
 BOTLOGS = "-1002486499773"
@@ -22,7 +18,7 @@ userDB = {
     'set': json.dumps({
         'baned': [],
         'admin': [6172467461],  # Add your admin user ID here
-        'jeda': None
+        'jeda': False
     }),
     'time': json.dumps({}),
     'users': []  # Store user IDs who have interacted with the bot
@@ -75,7 +71,9 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_html(pesan)
 
 def broadcast(update: Update, context: CallbackContext):
-    if update.message.from_user.id not in userDB['set']['admin']:
+    dtset = json.loads(userDB['set'])
+    
+    if update.message.from_user.id not in dtset['admin']:
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
@@ -89,6 +87,7 @@ def broadcast(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=user_id, text=message)
         except Exception as e:
             print(f"Failed to send message to {user_id}: {e}")
+            context.bot.send_message(chat_id=dtset['admin'][0], text=f"Gagal mengirim pesan ke {user_id}")
 
     update.message.reply_text("Pesan berhasil disiarkan kepada semua pengguna.")
 
@@ -136,14 +135,13 @@ def handle_message(update: Update, context: CallbackContext):
             pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
             if pola.search(msgbot.text):
                 if dtset.get('jeda'):
-                    update.message.reply_html("Saat Ini Tidak bisa Mengirim pesan")
+                    update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
                     return
 
                 c_time = int(time.time() * 1000)
                 last_time = json.loads(userDB['time']).get(f'last{msgbot.from_user.id}')
 
                 if not last_time or (c_time - last_time > 3600000):
-                    # Update last message time
                     data = json.loads(userDB['time'])
                     data[f'last{msgbot.from_user.id}'] = c_time
                     set_value('time', json.dumps(data))
@@ -161,15 +159,45 @@ def handle_message(update: Update, context: CallbackContext):
             else:
                 update.message.reply_html(f"{nama}, pesanmu gagal terkirim\n\nGunakan hashtag berikut agar pesanmu terkirim:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
 
+def set_jeda(update: Update, context: CallbackContext):
+    dtset = json.loads(userDB['set'])
+    
+    if update.message.from_user.id not in dtset['admin']:
+        update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
+        return
+
+    if context.args and context.args[0].lower() in ['on', 'off']:
+        dtset['jeda'] = context.args[0].lower() == 'on'
+        set_value('set', json.dumps(dtset))
+        status = "aktif" if dtset['jeda'] else "nonaktif"
+        update.message.reply_text(f"Fitur jeda sekarang {status}.")
+    else:
+        update.message.reply_text("Silakan masukkan 'on' atau 'off' untuk mengatur jeda.")
+
+def ban_user(update: Update, context: CallbackContext):
+    dtset = json.loads(userDB['set'])
+    
+    if update.message.from_user.id not in dtset['admin']:
+        update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
+        return
+
+    if context.args:
+        user_id = context.args[0]
+        if user_id not in dtset['baned']:
+            dtset['baned'].append(user_id)
+            set_value('set', json.dumps(dtset))
+            update.message.reply_text(f"Pengguna {user_id} telah diblokir.")
+        else:
+            update.message.reply_text(f"Pengguna {user_id} sudah diblokir.")
+    else:
+        update.message.reply_text("Silakan masukkan ID pengguna yang ingin diblokir.")
+
 @app.route('/')
 def index():
     return jsonify({"message": "Bot is running! by @MzCoder"})
 
-
-
 def run_flask():
     app.run(host='0.0.0.0', port=8000)
-
 
 def main():
     updater = Updater("6239054864:AAGrtQ4d9_lzH0eOrrUEmtAdpFWs8sw7I2c", use_context=True)
@@ -177,6 +205,8 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("broadcast", broadcast))  # Adding the broadcast command
+    dp.add_handler(CommandHandler("setjeda", set_jeda))  # Adding the set jeda command
+    dp.add_handler(CommandHandler("ban", ban_user))  # Adding the ban command
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
 
     # Jalankan bot di thread terpisah
