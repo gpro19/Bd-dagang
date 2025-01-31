@@ -233,7 +233,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=8000)
 
 def main():
-    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
+    updater = Updater("6239054864:AAGrtQ4d9_lzH0eOrrUEmtAdpFWs8sw7I2c", use_context=True)
 
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
