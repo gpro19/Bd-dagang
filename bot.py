@@ -4,7 +4,7 @@ import json
 import time
 import re
 from flask import Flask
-
+import threading
 
 app = Flask(__name__)
 # Constants
@@ -165,9 +165,11 @@ def handle_message(update: Update, context: CallbackContext):
 def index():
     return jsonify({"message": "Bot is running! by @MzCoder"})
 
-if __name__ == "__main__":
-    threading.Thread(target=monitor_tokens, daemon=True).start()
-    app.run(host='0.0.0.0', port=8000)
+
+
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+
 
 def main():
     updater = Updater("6239054864:AAGrtQ4d9_lzH0eOrrUEmtAdpFWs8sw7I2c", use_context=True)
@@ -177,9 +179,12 @@ def main():
     dp.add_handler(CommandHandler("broadcast", broadcast))  # Adding the broadcast command
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
 
+    # Jalankan bot di thread terpisah
     updater.start_polling()
-    updater.idle()
+
+    # Jalankan Flask app di thread terpisah
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
     main()
