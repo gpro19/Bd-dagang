@@ -3,7 +3,10 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import json
 import time
 import re
+from flask import Flask
 
+
+app = Flask(__name__)
 # Constants
 #MENFES = "-1001247979116"
 #GRUP = "-1001802952248"
@@ -158,6 +161,14 @@ def handle_message(update: Update, context: CallbackContext):
             else:
                 update.message.reply_html(f"{nama}, pesanmu gagal terkirim\n\nGunakan hashtag berikut agar pesanmu terkirim:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
 
+@app.route('/')
+def index():
+    return jsonify({"message": "Bot is running! by @MzCoder"})
+
+if __name__ == "__main__":
+    threading.Thread(target=monitor_tokens, daemon=True).start()
+    app.run(host='0.0.0.0', port=8000)
+
 def main():
     updater = Updater("6239054864:AAGrtQ4d9_lzH0eOrrUEmtAdpFWs8sw7I2c", use_context=True)
 
@@ -170,4 +181,5 @@ def main():
     updater.idle()
 
 if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)
     main()
