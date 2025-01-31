@@ -5,15 +5,20 @@ import time
 import re
 
 # Constants
-MENFES = "-1001247979116"
-GRUP = "-1001802952248"
-BOTLOGS = "-1001386322689"
+#MENFES = "-1001247979116"
+#GRUP = "-1001802952248"
+#BOTLOGS = "-1001386322689"
+
+
+MENFES = "-1002486499773"
+GRUP = "-1002441207941"
+BOTLOGS = "-1002486499773"
 
 # Sample database representation
 userDB = {
     'set': json.dumps({
         'baned': [],
-        'admin': [5166575484],  # Add your admin user ID here
+        'admin': [6172467461],  # Add your admin user ID here
         'jeda': None
     }),
     'time': json.dumps({}),
