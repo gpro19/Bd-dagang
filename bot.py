@@ -1,6 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import json
 import time
 import re
 from flask import Flask, jsonify
@@ -13,11 +12,7 @@ app = Flask(__name__)
 client = MongoClient("mongodb+srv://galeh:admin@cluster0.slk8m.mongodb.net/?retryWrites=true&w=majority")
 db = client['telegram_bot']  # Database name
 user_collection = db['users']  # Collection name for user data
-
-# Constants
-MENFES = "-1002486499773"
-GRUP = "-1002441207941"
-BOTLOGS = "-1002486499773"
+global_collection = db['global']  # Collection name for global data
 
 def get_from_cache(user_id, key):
     user_data = user_collection.find_one({"user_id": user_id})
@@ -29,11 +24,22 @@ def set_value(user_id, key, value):
     user_collection.update_one({"user_id": user_id}, {"$set": {key: value}}, upsert=True)
 
 def add_user(user_id):
+    # Simpan data pengguna
     if not user_collection.find_one({"user_id": user_id}):
-        user_collection.insert_one({"user_id": user_id, "baned": [], "admin": [6172467461], "jeda": False, "time": {}})
+        user_collection.insert_one({
+            "user_id": user_id,
+            "time": {}
+        })
+
+    # Simpan data global jika belum ada
+    if global_collection.count_documents({}) == 0:
+        global_collection.insert_one({
+            "jeda": False,
+            "admin": [],
+            "baned": []
+        })
 
 def clear_html(text):
-    # Implement HTML clearing logic here if necessary
     return text
 
 def format_duration(milliseconds):
@@ -52,17 +58,13 @@ def format_duration(milliseconds):
 
     return ', '.join(parts) or '0 detik'
 
-def check_hashtags(message):
-    hashtags = ['#belial', '#tradeal']
-    return any(tag in message for tag in hashtags)
-
 def start(update: Update, context: CallbackContext):
     nama = update.message.from_user.first_name
     if update.message.from_user.last_name:
         nama += ' ' + update.message.from_user.last_name
     nama = clear_html(nama)
 
-    add_user(update.message.from_user.id)  # Add user to the list
+    add_user(update.message.from_user.id)
 
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
@@ -70,8 +72,7 @@ def start(update: Update, context: CallbackContext):
 def broadcast(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
-    # Check if the user is an admin
-    if update.message.from_user.id not in user_data['admin']:
+    if update.message.from_user.id not in user_data.get('admin', []):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
@@ -80,7 +81,6 @@ def broadcast(update: Update, context: CallbackContext):
         update.message.reply_text("Silahkan masukkan pesan yang ingin dibroadcast.")
         return
 
-    # Check if there are users to send the message to
     users = list(user_collection.find())
     if not users:
         update.message.reply_text("Tidak ada pengguna yang terdaftar untuk dibroadcast.")
@@ -98,7 +98,6 @@ def broadcast(update: Update, context: CallbackContext):
             print(f"Failed to send message to {user['user_id']}: {e}")
             context.bot.send_message(chat_id=user_data['admin'][0], text=f"Gagal mengirim pesan ke {user['user_id']}")
 
-    # Styled response message
     reply_message = (
         f"<b>Pesan berhasil dikirim kepada {successful} pengguna.</b>"
         f"\n<i>Gagal mengirim pesan kepada {failed} pengguna.</i>"
@@ -108,9 +107,12 @@ def broadcast(update: Update, context: CallbackContext):
 
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
-    add_user(msgbot.from_user.id)  # Add user to the list
-    step = get_from_cache(msgbot.from_user.id, 'step')
-    if step:
+    add_user(msgbot.from_user.id)
+
+    # Check if the 'jeda' feature is active for all users
+    global_data = global_collection.find_one({})
+    if global_data and global_data.get("jeda"):
+        update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
         return
 
     nama = msgbot.from_user.first_name
@@ -120,7 +122,7 @@ def handle_message(update: Update, context: CallbackContext):
 
     if msgbot.chat.type == 'private':
         user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
-        bndat = user_data['baned']
+        bndat = user_data.get('baned', [])
 
         if str(msgbot.from_user.id) in bndat:
             update.message.reply_html("🚫 Anda diblokir dari bot")
@@ -151,7 +153,7 @@ def handle_message(update: Update, context: CallbackContext):
             pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
             if pola.search(msgbot.text):
                 user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
-                if user_data['jeda']:
+                if global_data and global_data.get('jeda'):
                     update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
                     return
 
@@ -177,44 +179,52 @@ def handle_message(update: Update, context: CallbackContext):
 def set_jeda(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
     
-    if update.message.from_user.id not in user_data['admin']:
+    # Check if the user is an admin
+    if update.message.from_user.id not in user_data.get('admin', []):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
     if context.args and context.args[0].lower() in ['on', 'off']:
-        set_value(update.message.from_user.id, 'jeda', context.args[0].lower() == 'on')
-        status = "aktif" if context.args[0].lower() == 'on' else "nonaktif"
-        update.message.reply_text(f"Fitur jeda sekarang {status}.")
+        # Set the 'jeda' status globally
+        status = context.args[0].lower() == 'on'
+        global_collection.update_one({}, {"$set": {"jeda": status}}, upsert=True)
+        state = "aktif" if status else "nonaktif"
+        update.message.reply_text(f"Fitur jeda sekarang {state} untuk semua pengguna.")
     else:
         update.message.reply_text("Silakan masukkan 'on' atau 'off' untuk mengatur jeda.")
 
 def ban_user(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
-    if update.message.from_user.id not in user_data['admin']:
+    if update.message.from_user.id not in user_data.get('admin', []):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
     if context.args:
         user_id = context.args[0]
-        if user_id not in user_data['baned']:
-            user_collection.update_one({"user_id": user_id}, {"$set": {"baned": user_data['baned'] + [user_id]}}, upsert=True)
-            update.message.reply_text(f"Pengguna {user_id} telah diblokir.")
-        else:
-            update.message.reply_text(f"Pengguna {user_id} sudah diblokir.")
+        # Menambahkan user_id ke daftar baned
+        user_collection.update_one(
+            {"user_id": user_id},
+            {"$addToSet": {"baned": user_id}},
+            upsert=True
+        )
+        update.message.reply_text(f"Pengguna {user_id} telah diblokir.")
     else:
         update.message.reply_text("Silakan masukkan ID pengguna yang ingin diblokir.")
 
 def reload_admins(update: Update, context: CallbackContext):
     try:
-        # Fetch the chat member list from the channel
         members = context.bot.get_chat_administrators(MENFES)
         new_admins = [(member.user.id, member.user.username) for member in members]
         
-        # Update the admin list in the user collection
-        user_collection.update_one({"user_id": update.message.from_user.id}, {"$set": {"admin": [admin[0] for admin in new_admins]}}, upsert=True)
+        # Mengupdate admin sambil menjaga data lain tetap ada
+        for user in user_collection.find():
+            current_admins = user.get('admin', [])
+            user_collection.update_one(
+                {"user_id": user['user_id']},
+                {"$set": {"admin": list(set(current_admins + [admin[0] for admin in new_admins]))}}  # Menggabungkan daftar admin
+            )
         
-        # Create the admin list with clickable usernames
         admin_list = '\n'.join([f"<a href='tg://user?id={admin_id}'>{admin_name}</a>" for admin_id, admin_name in new_admins if admin_name])
         
         update.message.reply_html(
