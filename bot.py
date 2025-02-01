@@ -33,7 +33,7 @@ def add_user(user_id):
         user_collection.insert_one({"user_id": user_id, "baned": [], "admin": [6172467461], "jeda": False, "time": {}})
 
 def clear_html(text):
-    # Implement HTML clearing logic here
+    # Implement HTML clearing logic here if necessary
     return text
 
 def format_duration(milliseconds):
@@ -106,7 +106,6 @@ def broadcast(update: Update, context: CallbackContext):
 
     update.message.reply_html(reply_message)
 
-        
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
     add_user(msgbot.from_user.id)  # Add user to the list
@@ -243,7 +242,6 @@ def main():
     dp.add_handler(CommandHandler("reload", reload_admins))
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
     
-
     # Start the bot in a separate thread
     updater.start_polling()
 
