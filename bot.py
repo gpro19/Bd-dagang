@@ -8,6 +8,12 @@ from pymongo import MongoClient
 
 app = Flask(__name__)
 
+
+MENFES = "-1002486499773"
+GRUP = "-1002441207941"
+BOTLOGS = "-1002486499773"
+
+
 # MongoDB setup
 client = MongoClient("mongodb+srv://galeh:admin@cluster0.slk8m.mongodb.net/?retryWrites=true&w=majority")
 db = client['telegram_bot']  # Database name
