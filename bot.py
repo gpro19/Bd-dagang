@@ -12,7 +12,7 @@ app = Flask(__name__)
 MENFES = "-1002486499773"
 GRUP = "-1002441207941"
 BOTLOGS = "-1002486499773"
-
+DEV = ""
 
 # MongoDB setup
 client = MongoClient("mongodb+srv://galeh:admin@cluster0.slk8m.mongodb.net/?retryWrites=true&w=majority")
@@ -75,6 +75,8 @@ def start(update: Update, context: CallbackContext):
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
 
+
+
 def broadcast(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
@@ -103,14 +105,19 @@ def broadcast(update: Update, context: CallbackContext):
             failed += 1
             print(f"Failed to send message to {user['user_id']}: {e}")
             context.bot.send_message(chat_id=user_data['admin'][0], text=f"Gagal mengirim pesan ke {user['user_id']}")
+        
+        # Adding a delay to avoid hitting limits
+        time.sleep(0.5)  # Adjust the delay as needed
 
     reply_message = (
-        f"<b>Pesan berhasil dikirim kepada {successful} pengguna.</b>"
-        f"\n<i>Gagal mengirim pesan kepada {failed} pengguna.</i>"
+        "<b>Status Broadcast:</b>\n"
+        f"<b>✅ Berhasil Terkirim: </b></code>{successful} </code>\n"
+        f"<b>❌ Gagal Mengirim Pesan Ke: </b></code>{failed}</code>"
     )
 
     update.message.reply_html(reply_message)
-
+    
+    
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
     add_user(msgbot.from_user.id)
@@ -118,7 +125,7 @@ def handle_message(update: Update, context: CallbackContext):
     # Check if the 'jeda' feature is active for all users
     global_data = global_collection.find_one({})
     if global_data and global_data.get("jeda"):
-        update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
+        update.message.reply_html("Saat Ini Tidak bisa Mengirim pesan.", reply_to_message_id=msgbot.message_id)
         return
 
     nama = msgbot.from_user.first_name
@@ -151,7 +158,7 @@ def handle_message(update: Update, context: CallbackContext):
             pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
             if pola.search(msgbot.caption):
                 context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
-                update.message.reply_html('Pesan berhasil terkirim!')
+                update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
             else:
                 update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
     elif msgbot.text:
@@ -170,7 +177,7 @@ def handle_message(update: Update, context: CallbackContext):
                     set_value(msgbot.from_user.id, f'time.last{msgbot.from_user.id}', c_time)
 
                     context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
-                    update.message.reply_html('Pesan berhasil terkirim!')
+                    update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
 
                     usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
                     pesan_logs = f"<b>Nama :</b> {msgbot.from_user.first_name} (<code>{msgbot.from_user.id}</code>)\n<b>Username :</b><i> {usn}</i>\n<b>Pesan :</b> <i>{msgbot.text}</i>"
@@ -180,7 +187,10 @@ def handle_message(update: Update, context: CallbackContext):
                     wkttng = format_duration(3600000 - cw)
                     update.message.reply_html(f'Tunggu <b>{wkttng}</b> lagi, untuk mengirim pesan!')
             else:
-                update.message.reply_html(f"{nama}, pesanmu gagal terkirim\n\nGunakan hashtag berikut agar pesanmu terkirim:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
+                update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
+
+
+
 
 def set_jeda(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
@@ -190,14 +200,43 @@ def set_jeda(update: Update, context: CallbackContext):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
-    if context.args and context.args[0].lower() in ['on', 'off']:
-        # Set the 'jeda' status globally
-        status = context.args[0].lower() == 'on'
-        global_collection.update_one({}, {"$set": {"jeda": status}}, upsert=True)
-        state = "aktif" if status else "nonaktif"
-        update.message.reply_text(f"Fitur jeda sekarang {state} untuk semua pengguna.")
+    # Ambil status jeda saat ini
+    current_status = global_collection.find_one({}, {"jeda": 1})  # Mengambil status jeda
+    is_jeda_active = current_status.get('jeda', False) if current_status else False
+
+    # Buat tombol berdasarkan status jeda
+    if is_jeda_active:
+        keyboard = [[InlineKeyboardButton("Nonaktifkan Jeda", callback_data='jeda_off')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text("Fitur jeda saat ini aktif. Silakan pilih:", reply_markup=reply_markup)
     else:
-        update.message.reply_text("Silakan masukkan 'on' atau 'off' untuk mengatur jeda.")
+        keyboard = [[InlineKeyboardButton("Aktifkan Jeda", callback_data='jeda_on')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text("Fitur jeda saat ini nonaktif. Silakan pilih:", reply_markup=reply_markup)
+
+
+def button(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()  # Acknowledge the button press
+
+    try:
+        # Tentukan tindakan berdasarkan callback data
+        if query.data == 'jeda_on':
+            global_collection.update_one({}, {"$set": {"jeda": True}}, upsert=True)
+            query.edit_message_text("Fitur jeda sekarang aktif untuk semua pengguna.")
+        elif query.data == 'jeda_off':
+            global_collection.update_one({}, {"$set": {"jeda": False}}, upsert=True)
+            query.edit_message_text("Fitur jeda sekarang nonaktif untuk semua pengguna.")
+        
+        # Setelah mengubah status, perbarui tombol
+        set_jeda(update, context)  # Menampilkan kembali tombol sesuai status terbaru
+
+    except Exception as e:
+        query.edit_message_text("Terjadi kesalahan saat mengubah status jeda. Silakan coba lagi.")
+        print(f"Error while updating jeda status: {e}")
+
+
+
 
 def ban_user(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
@@ -218,6 +257,7 @@ def ban_user(update: Update, context: CallbackContext):
     else:
         update.message.reply_text("Silakan masukkan ID pengguna yang ingin diblokir.")
 
+
 def reload_admins(update: Update, context: CallbackContext):
     try:
         members = context.bot.get_chat_administrators(MENFES)
@@ -231,10 +271,11 @@ def reload_admins(update: Update, context: CallbackContext):
                 {"$set": {"admin": list(set(current_admins + [admin[0] for admin in new_admins]))}}  # Menggabungkan daftar admin
             )
         
-        admin_list = '\n'.join([f"<a href='tg://user?id={admin_id}'>{admin_name}</a>" for admin_id, admin_name in new_admins if admin_name])
+        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, (admin_id, admin_name) in enumerate(new_admins) if admin_name])
         
-        update.message.reply_html(
-            f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}"
+        update.message.reply_text(
+            f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}",
+            parse_mode="HTML"  # Menyertakan HTML untuk format teks
         )
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
@@ -257,6 +298,8 @@ def main():
     dp.add_handler(CommandHandler("ban", ban_user))
     dp.add_handler(CommandHandler("reload", reload_admins))
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
+    dp.add_handler(CallbackQueryHandler(button))
+    
     
     # Start the bot in a separate thread
     updater.start_polling()
