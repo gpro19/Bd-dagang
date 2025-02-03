@@ -49,17 +49,26 @@ def add_user(user_id):
 
 
 def update_statistics(user_id):
-    today = time.strftime("%Y-%m-%d")  # Format tanggal hari ini
+    today = time.strftime("%Y-%m-%d")  # Get today's date in YYYY-MM-DD format
     statistics_collection.update_one(
-        {"date": today},
+        {"date": today},  # Match today's statistics
         {
-            "$inc": {"messages_sent": 1},  # Menambah jumlah pesan yang dikirim
-            "$addToSet": {"users": user_id}  # Menambahkan user_id jika belum ada
+            "$inc": {"messages_sent": 1},  # Increment the message count
+            "$addToSet": {"users": user_id}  # Add user_id to the users set (unique)
         },
-        upsert=True
+        upsert=True  # Create the document if it doesn't exist
     )
     
     
+def reset_daily_statistics():
+    today = time.strftime("%Y-%m-%d")
+    # Resetting or creating a new entry for today’s statistics
+    statistics_collection.update_one(
+        {"date": today},
+        {"$set": {"messages_sent": 0, "users": []}},
+        upsert=True
+    )
+
 
 
 
@@ -93,6 +102,7 @@ def start(update: Update, context: CallbackContext):
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
 
+
 def show_statistics(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
@@ -102,20 +112,31 @@ def show_statistics(update: Update, context: CallbackContext):
 
     today = time.strftime("%Y-%m-%d")
     stats = statistics_collection.find_one({"date": today})
+    
+    # Assuming total messages are kept separately
+    total_stats = statistics_collection.find_one({"total": True})  
 
     if stats:
-        messages_sent = stats.get("messages_sent", 0)
-        users_count = len(stats.get("users", []))
+        messages_sent_today = stats.get("messages_sent", 0)
+        users_count_today = len(stats.get("users", []))
+        messages_last_7_days = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({"date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}}))
+        messages_last_24_hours = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({"date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}}))
+
+        total_messages = total_stats.get("total_messages", 0)
+
         reply_message = (
             f"<b>Statistik Hari Ini:</b>\n"
-            f"Jumlah Pengiriman Pesan: <code>{messages_sent}</code>\n"
-            f"Jumlah Pengguna Berbeda: <code>{users_count}</code>"
+            f"Jumlah Pengguna: <code>{users_count_today}</code>\n"
+            f"Pesan Hari Ini yang Dibuat: <code>{messages_sent_today}</code> Pesan\n"
+            f"Total Pesan yang Dibuat: <code>{total_messages}</code> Pesan\n"
+            f"Jumlah Pengguna Selama 7 Hari Terakhir: <code>{messages_last_7_days}</code>\n"
+            f"Jumlah Pengguna Selama 24 Jam Terakhir: <code>{messages_last_24_hours}</code>"
         )
     else:
         reply_message = "<b>Statistik Hari Ini:</b>\nTidak ada pesan yang dikirim hari ini."
 
     update.message.reply_html(reply_message)
-    
+
 
 def broadcast(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
