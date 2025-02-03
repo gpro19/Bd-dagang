@@ -233,6 +233,8 @@ def handle_message(update: Update, context: CallbackContext):
 
 
 
+
+
 def set_jeda(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
     
@@ -248,12 +250,10 @@ def set_jeda(update: Update, context: CallbackContext):
     # Buat tombol berdasarkan status jeda
     if is_jeda_active:
         keyboard = [[InlineKeyboardButton("Nonaktifkan Jeda", callback_data='jeda_off')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text("Fitur jeda saat ini aktif. Silakan pilih:", reply_markup=reply_markup)
+        update.message.reply_text("Fitur jeda saat ini aktif. Silakan pilih:", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         keyboard = [[InlineKeyboardButton("Aktifkan Jeda", callback_data='jeda_on')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text("Fitur jeda saat ini nonaktif. Silakan pilih:", reply_markup=reply_markup)
+        update.message.reply_text("Fitur jeda saat ini nonaktif. Silakan pilih:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 def button(update: Update, context: CallbackContext):
@@ -265,19 +265,18 @@ def button(update: Update, context: CallbackContext):
         if query.data == 'jeda_on':
             global_collection.update_one({}, {"$set": {"jeda": True}}, upsert=True)
             query.edit_message_text("Fitur jeda sekarang aktif untuk semua pengguna.")
+            keyboard = [[InlineKeyboardButton("Nonaktifkan Jeda", callback_data='jeda_off')]]
+            query.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
         elif query.data == 'jeda_off':
             global_collection.update_one({}, {"$set": {"jeda": False}}, upsert=True)
             query.edit_message_text("Fitur jeda sekarang nonaktif untuk semua pengguna.")
-        
-        # Setelah mengubah status, perbarui tombol
-        set_jeda(update, context)  # Menampilkan kembali tombol sesuai status terbaru
-
+            keyboard = [[InlineKeyboardButton("Aktifkan Jeda", callback_data='jeda_on')]]
+            query.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    
     except Exception as e:
         # Menampilkan pesan kesalahan yang lebih informatif
         query.edit_message_text("Terjadi kesalahan saat mengubah status jeda. Silakan coba lagi.")
         print(f"Error while updating jeda status: {e}")  # Log kesalahan untuk debugging
-
-
 
 
 def ban_user(update: Update, context: CallbackContext):
