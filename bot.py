@@ -104,6 +104,7 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_html(pesan)
 
 
+
 def show_statistics(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
@@ -113,17 +114,22 @@ def show_statistics(update: Update, context: CallbackContext):
 
     today = time.strftime("%Y-%m-%d")
     stats = statistics_collection.find_one({"date": today})
-    
-    # Assuming total messages are kept separately
-    total_stats = statistics_collection.find_one({"total": True})  
+
+    # Fetch total statistics
+    total_stats = statistics_collection.find_one({"total": True})
+
+    # Initialize total_messages to 0 if total_stats is None
+    total_messages = total_stats.get("total_messages", 0) if total_stats else 0 
 
     if stats:
         messages_sent_today = stats.get("messages_sent", 0)
         users_count_today = len(stats.get("users", []))
-        messages_last_7_days = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({"date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}}))
-        messages_last_24_hours = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({"date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}}))
-
-        total_messages = total_stats.get("total_messages", 0)
+        messages_last_7_days = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
+            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
+        }))
+        messages_last_24_hours = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
+            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}
+        }))
 
         reply_message = (
             f"<b>Statistik Hari Ini:</b>\n"
@@ -137,6 +143,7 @@ def show_statistics(update: Update, context: CallbackContext):
         reply_message = "<b>Statistik Hari Ini:</b>\nTidak ada pesan yang dikirim hari ini."
 
     update.message.reply_html(reply_message)
+
 
 
 def broadcast(update: Update, context: CallbackContext):
