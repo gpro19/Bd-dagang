@@ -322,18 +322,21 @@ def ban_user(update: Update, context: CallbackContext):
 def reload_admins(update: Update, context: CallbackContext):
     try:
         members = context.bot.get_chat_administrators(MENFES)
-        new_admins = [(member.user.id, member.user.username) for member in members]
-        
+        new_admins = [
+            member.user.username if member.user.username else member.user.first_name 
+            for member in members
+        ]  # Mengambil nama pengguna atau nama depan jika nama pengguna tidak ada
+
         # Mengupdate admin sambil menjaga data lain tetap ada
         for user in user_collection.find():
             current_admins = user.get('admin', [])
             user_collection.update_one(
                 {"user_id": user['user_id']},
-                {"$set": {"admin": list(set(current_admins + [admin[0] for admin in new_admins]))}}  # Menggabungkan daftar admin
+                {"$set": {"admin": list(set(current_admins + new_admins))}}  # Menggabungkan daftar admin
             )
         
-        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, (admin_id, admin_name) in enumerate(new_admins) if admin_name])
-        
+        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, admin_name in enumerate(new_admins)])
+
         update.message.reply_text(
             f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}",
             parse_mode="HTML"  # Menyertakan HTML untuk format teks
@@ -341,7 +344,6 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
-
 
 def help_command(update: Update, context: CallbackContext):
     help_text = (
