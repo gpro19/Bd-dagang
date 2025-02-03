@@ -19,6 +19,8 @@ client = MongoClient("mongodb+srv://galeh:admin@cluster0.slk8m.mongodb.net/?retr
 db = client['telegram_bot']  # Database name
 user_collection = db['users']  # Collection name for user data
 global_collection = db['global']  # Collection name for global data
+statistics_collection = db['statistics']  # Koleksi untuk menyimpan statistik
+
 
 def get_from_cache(user_id, key):
     user_data = user_collection.find_one({"user_id": user_id})
@@ -44,6 +46,22 @@ def add_user(user_id):
             "admin": [],
             "baned": []
         })
+
+
+def update_statistics(user_id):
+    today = time.strftime("%Y-%m-%d")  # Format tanggal hari ini
+    statistics_collection.update_one(
+        {"date": today},
+        {
+            "$inc": {"messages_sent": 1},  # Menambah jumlah pesan yang dikirim
+            "$addToSet": {"users": user_id}  # Menambahkan user_id jika belum ada
+        },
+        upsert=True
+    )
+    
+    
+
+
 
 def clear_html(text):
     return text
@@ -75,7 +93,29 @@ def start(update: Update, context: CallbackContext):
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
 
+def show_statistics(update: Update, context: CallbackContext):
+    user_data = user_collection.find_one({"user_id": update.message.from_user.id})
 
+    if update.message.from_user.id not in user_data.get('admin', []):
+        update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
+        return
+
+    today = time.strftime("%Y-%m-%d")
+    stats = statistics_collection.find_one({"date": today})
+
+    if stats:
+        messages_sent = stats.get("messages_sent", 0)
+        users_count = len(stats.get("users", []))
+        reply_message = (
+            f"<b>Statistik Hari Ini:</b>\n"
+            f"Jumlah Pengiriman Pesan: <code>{messages_sent}</code>\n"
+            f"Jumlah Pengguna Berbeda: <code>{users_count}</code>"
+        )
+    else:
+        reply_message = "<b>Statistik Hari Ini:</b>\nTidak ada pesan yang dikirim hari ini."
+
+    update.message.reply_html(reply_message)
+    
 
 def broadcast(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
@@ -111,8 +151,8 @@ def broadcast(update: Update, context: CallbackContext):
 
     reply_message = (
         "<b>Status Broadcast:</b>\n"
-        f"<b>✅ Berhasil Terkirim: </b></code>{successful} </code>\n"
-        f"<b>❌ Gagal Mengirim Pesan Ke: </b></code>{failed}</code>"
+        f"<b>✅ Berhasil Terkirim: </b><code>{successful} </code>\n"
+        f"<b>❌ Gagal Mengirim Pesan Ke: </b><code>{failed}</code>"
     )
 
     update.message.reply_html(reply_message)
@@ -159,6 +199,7 @@ def handle_message(update: Update, context: CallbackContext):
             if pola.search(msgbot.caption):
                 context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                 update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
+                update_statistics(msgbot.from_user.id)  # Update statistics
             else:
                 update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
     elif msgbot.text:
@@ -178,6 +219,7 @@ def handle_message(update: Update, context: CallbackContext):
 
                     context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                     update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
+                    update_statistics(msgbot.from_user.id)  # Update statistics
 
                     usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
                     pesan_logs = f"<b>Nama :</b> {msgbot.from_user.first_name} (<code>{msgbot.from_user.id}</code>)\n<b>Username :</b><i> {usn}</i>\n<b>Pesan :</b> <i>{msgbot.text}</i>"
@@ -191,12 +233,11 @@ def handle_message(update: Update, context: CallbackContext):
 
 
 
-
 def set_jeda(update: Update, context: CallbackContext):
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
     
     # Check if the user is an admin
-    if update.message.from_user.id not in user_data.get('admin', []):
+    if user_data is None or update.message.from_user.id not in user_data.get('admin', []):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
@@ -232,8 +273,9 @@ def button(update: Update, context: CallbackContext):
         set_jeda(update, context)  # Menampilkan kembali tombol sesuai status terbaru
 
     except Exception as e:
+        # Menampilkan pesan kesalahan yang lebih informatif
         query.edit_message_text("Terjadi kesalahan saat mengubah status jeda. Silakan coba lagi.")
-        print(f"Error while updating jeda status: {e}")
+        print(f"Error while updating jeda status: {e}")  # Log kesalahan untuk debugging
 
 
 
@@ -281,6 +323,22 @@ def reload_admins(update: Update, context: CallbackContext):
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
 
+
+def help_command(update: Update, context: CallbackContext):
+    help_text = (
+        "<b>Daftar Perintah:</b>\n\n"
+        "<b>/start</b> - Memulai interaksi dengan bot.\n"
+        "<b>/broadcast [pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
+        "<b>/jeda</b> - Mengatur status jeda untuk pengiriman pesan.\n"
+        "<b>/ban [user_id]</b> - Memblokir pengguna tertentu.\n"
+        "<b>/reload</b> - Memperbarui daftar admin dari grup.\n"
+        "<b>/stats</b> - Menampilkan statistik pengiriman pesan hari ini.\n"
+        "<b>/help</b> - Menampilkan daftar perintah ini.\n\n"        
+    )
+    
+    update.message.reply_html(help_text)
+    
+    
 @app.route('/')
 def index():
     return jsonify({"message": "Bot is running! by @MzCoder"})
@@ -294,9 +352,11 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("broadcast", broadcast))
-    dp.add_handler(CommandHandler("setjeda", set_jeda))
+    dp.add_handler(CommandHandler("jeda", set_jeda))
     dp.add_handler(CommandHandler("ban", ban_user))
     dp.add_handler(CommandHandler("reload", reload_admins))
+    dp.add_handler(CommandHandler("stats", show_statistics))
+    dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message))
     dp.add_handler(CallbackQueryHandler(button))
     
