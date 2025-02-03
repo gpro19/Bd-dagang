@@ -264,14 +264,13 @@ def button(update: Update, context: CallbackContext):
         # Tentukan tindakan berdasarkan callback data
         if query.data == 'jeda_on':
             global_collection.update_one({}, {"$set": {"jeda": True}}, upsert=True)
-            query.edit_message_text("Fitur jeda sekarang aktif untuk semua pengguna.")
             keyboard = [[InlineKeyboardButton("Nonaktifkan Jeda", callback_data='jeda_off')]]
-            query.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+            query.edit_message_text("Fitur jeda sekarang aktif untuk semua pengguna.", reply_markup=InlineKeyboardMarkup(keyboard))
+           
         elif query.data == 'jeda_off':
             global_collection.update_one({}, {"$set": {"jeda": False}}, upsert=True)
-            query.edit_message_text("Fitur jeda sekarang nonaktif untuk semua pengguna.")
             keyboard = [[InlineKeyboardButton("Aktifkan Jeda", callback_data='jeda_on')]]
-            query.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+            query.edit_message_text("Fitur jeda sekarang nonaktif untuk semua pengguna.", reply_markup=InlineKeyboardMarkup(keyboard))
     
     except Exception as e:
         # Menampilkan pesan kesalahan yang lebih informatif
