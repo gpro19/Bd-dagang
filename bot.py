@@ -10,9 +10,9 @@ from pymongo import MongoClient
 app = Flask(__name__)
 
 
-MENFES = "-1002486499773"
-GRUP = "-1002441207941"
-BOTLOGS = "-1002486499773"
+MENFES = "-1001247979116"
+GRUP = "-1001802952248"
+BOTLOGS = "-1001386322689"
 DEV = ""
 
 # MongoDB setup
@@ -93,6 +93,27 @@ def format_duration(milliseconds):
     return ', '.join(parts) or '0 detik'
 
 def start(update: Update, context: CallbackContext):
+    msgbot = update.message
+    if msgbot.chat.type == 'private':
+        user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
+        bndat = user_data.get('baned', [])
+
+        if str(msgbot.from_user.id) in bndat:
+            update.message.reply_html("🚫 Anda diblokir dari bot")
+            return
+
+        sub = context.bot.get_chat_member(MENFES, msgbot.from_user.id)
+        sub2 = context.bot.get_chat_member(GRUP, msgbot.from_user.id)
+
+        if sub.status in ['left', 'kicked'] or sub2.status in ['left', 'kicked']:
+            keyb = [
+                [InlineKeyboardButton('Channel Base', url='https://t.me/Basedagangal'),
+                 InlineKeyboardButton('Grup Base', url='https://t.me/sendbasedagangal2')],
+                [InlineKeyboardButton('Coba Lagi', url='https://t.me/AUTOPOSTBASEDAGANGAL_BOT?start=')]
+            ]
+            update.message.reply_html("Tidak dapat diakses harap join terlebih dahulu", reply_markup=InlineKeyboardMarkup(keyb))
+            return
+            
     nama = update.message.from_user.first_name
     if update.message.from_user.last_name:
         nama += ' ' + update.message.from_user.last_name
@@ -102,6 +123,8 @@ def start(update: Update, context: CallbackContext):
 
     pesan = f"Hai <b>{nama}!</b> 🐝\n\nPesan yang kamu kirim di sini,\nakan diteruskan secara otomatis\nke channel @Basedagangal ✨\n\nGunakan hashtag berikut agar\npesanmu terkirim:\n\n#belial #tradeal"
     update.message.reply_html(pesan)
+
+
 
 
 def show_statistics(update: Update, context: CallbackContext):    
@@ -383,7 +406,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=8000)
 
 def main():
-    updater = Updater("6239054864:AAGrtQ4d9_lzH0eOrrUEmtAdpFWs8sw7I2c", use_context=True)
+    updater = Updater("6821877639:AAGEFkSaYVYaGiroIDFlnOSaKZ1wZxfQTL8", use_context=True)
 
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
