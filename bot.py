@@ -92,6 +92,8 @@ def format_duration(milliseconds):
 
     return ', '.join(parts) or '0 detik'
 
+
+
 def start(update: Update, context: CallbackContext):
     msgbot = update.message
     if msgbot.chat.type == 'private':
@@ -129,6 +131,11 @@ def start(update: Update, context: CallbackContext):
 
 def show_statistics(update: Update, context: CallbackContext):    
     user_data = user_collection.find_one({"user_id": update.message.from_user.id})
+
+    # Check if user_data is None
+    if user_data is None:
+        update.message.reply_text("Data pengguna tidak ditemukan.")
+        return
 
     if update.message.from_user.id not in user_data.get('admin', []):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
