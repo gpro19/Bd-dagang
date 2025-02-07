@@ -245,11 +245,11 @@ def broadcast(update: Update, context: CallbackContext):
     update.message.reply_html(reply_message)
 
 
-def handle_message(update: Update, context: CallbackContext):
-    msgbot = update.message
-    add_user(msgbot.from_user.id)
-    
+def handle_message(update: Update, context: CallbackContext):    
     if msgbot.chat.type == 'private':
+        
+        msgbot = update.message
+        add_user(msgbot.from_user.id)
         # Check if the 'jeda' feature is active for all users
         global_data = global_collection.find_one({})
         if global_data and global_data.get("jeda"):
