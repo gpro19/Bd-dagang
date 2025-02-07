@@ -429,8 +429,24 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
-        
+
+
+def help_command(update: Update, context: CallbackContext):
+    help_text = (
+        "<b>Daftar Perintah:</b>\n\n"
+        "<b>/start</b> - Memulai interaksi dengan bot.\n"
+        "<b>/broadcast [pesan]/[reply pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
+        "<b>/jeda</b> - Mengatur status jeda untuk pengiriman pesan.\n"
+        "<b>/ban [user_id]</b> - Memblokir pengguna tertentu.\n"
+        "<b>/reload</b> - Memperbarui daftar admin.\n"
+        "<b>/stats</b> - Menampilkan statistik pengiriman pesan hari ini.\n"
+        "<b>/help</b> - Menampilkan daftar perintah ini.\n\n"        
+    )
     
+    update.message.reply_html(help_text)
+
+
+
 @app.route('/')
 def index():
     return jsonify({"message": "Bot is running! by @MzCoder"})
