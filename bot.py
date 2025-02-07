@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatType
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import time
 from datetime import datetime
@@ -266,7 +266,7 @@ def broadcast(update: Update, context: CallbackContext):
 
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message  # Define msgbot at the start
-    if msgbot.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+    if msgbot.chat.type !== 'private':
         # Cek jika pesan adalah balasan dan diteruskan dari chat
         if msgbot.reply_to_message and msgbot.reply_to_message.forward_from_chat:
             original_id = msgbot.reply_to_message.forward_from_chat.id
