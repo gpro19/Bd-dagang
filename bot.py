@@ -172,8 +172,8 @@ def show_statistics(update: Update, context: CallbackContext):
         reply_message = (
             "<b>Statistik Hari Ini:</b>\n"
             f"Pesan Hari Ini: <code>{messages_sent_today}</code> Pesan\n"
-            f"Jumlah Pengguna Selama 7 Hari Terakhir: <code>{len(total_users_last_7_days)}</code>\n"
-            f"Jumlah Pengguna Selama 24 Jam Terakhir: <code>{len(total_users_last_24_hours)}</code>"
+            f"<b>Jumlah Pengguna</b>\n7 hari terakhir: <code>{len(total_users_last_7_days)}</code>\n"
+            f"24 Jam Terakhir: <code>{len(total_users_last_24_hours)}</code>"
         )
     else:
         reply_message = "<b>Statistik Hari Ini:</b>\nTidak ada pesan yang dikirim hari ini."
