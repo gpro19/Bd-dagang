@@ -268,8 +268,10 @@ def broadcast(update: Update, context: CallbackContext):
 
 
 def handle_message(update: Update, context: CallbackContext):
-    msgbot = update.message  # Define msgbot at the start
-
+    msgbot = update.message  # Ensure msgbot is assigned from update.message
+    if msgbot is None:
+        return  # Handle the case when msgbot is None
+ 
     if msgbot.chat.type == 'private':            
         add_user(msgbot.from_user.id)
         # Check if the 'jeda' feature is active for all users
