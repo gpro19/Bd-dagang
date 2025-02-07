@@ -265,8 +265,8 @@ def broadcast(update: Update, context: CallbackContext):
 
 
 def handle_message(update: Update, context: CallbackContext):
+    msgbot = update.message  # Define msgbot at the start
     if msgbot.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        msgbot = update.message
         # Cek jika pesan adalah balasan dan diteruskan dari chat
         if msgbot.reply_to_message and msgbot.reply_to_message.forward_from_chat:
             original_id = msgbot.reply_to_message.forward_from_chat.id
@@ -286,8 +286,7 @@ def handle_message(update: Update, context: CallbackContext):
                     print(f"Error: {error}")
 
     
-    if msgbot.chat.type == 'private':        
-        msgbot = update.message
+    if msgbot.chat.type == 'private':            
         add_user(msgbot.from_user.id)
         # Check if the 'jeda' feature is active for all users
         global_data = global_collection.find_one({})
