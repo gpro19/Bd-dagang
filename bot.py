@@ -51,14 +51,14 @@ def add_user(user_id):
 
 
 def update_statistics(user_id):
-    today = time.strftime("%Y-%m-%d")  # Get today's date in YYYY-MM-DD format
+    today = time.strftime("%Y-%m-%d")  # Mendapatkan tanggal hari ini dalam format YYYY-MM-DD
     statistics_collection.update_one(
-        {"date": today},  # Match today's statistics
+        {"date": today},  # Mencocokkan statistik hari ini
         {
-            "$inc": {"messages_sent": 1},  # Increment the message count
-            "$push": {"users": user_id}  # Push user_id to the users list (not unique)
+            "$inc": {"messages_sent": 1},  # Meningkatkan jumlah pesan
+            "$addToSet": {"users": user_id}  # Menambahkan user_id ke daftar users (hanya unik)
         },
-        upsert=True  # Create the document if it doesn't exist
+        upsert=True  # Buat dokumen jika tidak ada
     )
 
 def reset_daily_statistics():
@@ -71,7 +71,11 @@ def reset_daily_statistics():
     )
 
 
-
+def is_admin(user_id):
+    global_data = global_collection.find_one({})
+    if global_data and 'admin' in global_data:
+        return str(user_id) in global_data['admin']
+    return False
 
 def clear_html(text):
     return text
@@ -97,12 +101,6 @@ def format_duration(milliseconds):
 def start(update: Update, context: CallbackContext):
     msgbot = update.message
     if msgbot.chat.type == 'private':
-        user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
-        bndat = user_data.get('baned', [])
-
-        if str(msgbot.from_user.id) in bndat:
-            update.message.reply_html("🚫 Anda diblokir dari bot")
-            return
 
         sub = context.bot.get_chat_member(MENFES, msgbot.from_user.id)
         sub2 = context.bot.get_chat_member(GRUP, msgbot.from_user.id)
@@ -127,17 +125,11 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_html(pesan)
 
 
-
-
 def show_statistics(update: Update, context: CallbackContext):    
-    user_data = user_collection.find_one({"user_id": update.message.from_user.id})
+    user_id = update.message.from_user.id
 
-    # Check if user_data is None
-    if user_data is None:
-        update.message.reply_text("Data pengguna tidak ditemukan.")
-        return
-
-    if update.message.from_user.id not in user_data.get('admin', []):
+    # Check if the user is an admin
+    if not is_admin(user_id):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
@@ -155,32 +147,38 @@ def show_statistics(update: Update, context: CallbackContext):
         users_count_today = stats.get("users", [])
         total_users_today = len(users_count_today)  # Total semua pengguna yang mengirim pesan hari ini
 
+        # Menghitung pesan dalam 7 hari terakhir
         messages_last_7_days = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
             "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
         }))
-        total_users_last_7_days = sum(len(stat.get("users", [])) for stat in statistics_collection.find({
-            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
-        }))  # Menghitung semua pengguna selama 7 hari terakhir
 
+        total_users_last_7_days = set()
+        for stat in statistics_collection.find({
+            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
+        }):
+            total_users_last_7_days.update(stat.get("users", []))
+
+        # Menghitung pesan dalam 24 jam terakhir
         messages_last_24_hours = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
             "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}
         }))
-        total_users_last_24_hours = sum(len(stat.get("users", [])) for stat in statistics_collection.find({
+
+        total_users_last_24_hours = set()
+        for stat in statistics_collection.find({
             "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}
-        }))  # Menghitung semua pengguna selama 24 jam terakhir
+        }):
+            total_users_last_24_hours.update(stat.get("users", []))
 
         reply_message = (
             "<b>Statistik Hari Ini:</b>\n"
             f"Pesan Hari Ini: <code>{messages_sent_today}</code> Pesan\n"
-            f"Jumlah Pengguna Selama 7 Hari Terakhir: <code>{total_users_last_7_days}</code>\n"
-            f"Jumlah Pengguna Selama 24 Jam Terakhir: <code>{total_users_last_24_hours}</code>"
+            f"Jumlah Pengguna Selama 7 Hari Terakhir: <code>{len(total_users_last_7_days)}</code>\n"
+            f"Jumlah Pengguna Selama 24 Jam Terakhir: <code>{len(total_users_last_24_hours)}</code>"
         )
     else:
         reply_message = "<b>Statistik Hari Ini:</b>\nTidak ada pesan yang dikirim hari ini."
 
     update.message.reply_html(reply_message)
-
-
 
 
 def broadcast(update: Update, context: CallbackContext):
@@ -240,12 +238,14 @@ def handle_message(update: Update, context: CallbackContext):
     nama = clear_html(nama)
 
     if msgbot.chat.type == 'private':
-        user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
-        bndat = user_data.get('baned', [])
+        
+      # Ambil daftar pengguna yang diblokir
+      bndat = global_data.get('baned', [])
 
-        if str(msgbot.from_user.id) in bndat:
-            update.message.reply_html("🚫 Anda diblokir dari bot")
-            return
+      # Periksa apakah pengguna diblokir
+      if str(msgbot.from_user.id) in bndat:
+          update.message.reply_html("🚫 Anda diblokir dari bot")
+          return
 
         sub = context.bot.get_chat_member(MENFES, msgbot.from_user.id)
         sub2 = context.bot.get_chat_member(GRUP, msgbot.from_user.id)
@@ -301,11 +301,12 @@ def handle_message(update: Update, context: CallbackContext):
 
 
 
+
 def set_jeda(update: Update, context: CallbackContext):
-    user_data = user_collection.find_one({"user_id": update.message.from_user.id})
-    
+    user_id = update.message.from_user.id
+
     # Check if the user is an admin
-    if user_data is None or update.message.from_user.id not in user_data.get('admin', []):
+    if not is_admin(user_id):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
@@ -345,21 +346,22 @@ def button(update: Update, context: CallbackContext):
 
 
 def ban_user(update: Update, context: CallbackContext):
-    user_data = user_collection.find_one({"user_id": update.message.from_user.id})
+    user_id = update.message.from_user.id
 
-    if update.message.from_user.id not in user_data.get('admin', []):
+    # Periksa apakah pengguna adalah admin di global_collection
+    if not is_admin(user_id):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
     if context.args:
-        user_id = context.args[0]
-        # Menambahkan user_id ke daftar baned
-        user_collection.update_one(
-            {"user_id": user_id},
-            {"$addToSet": {"baned": user_id}},
-            upsert=True
+        user_to_ban = context.args[0]
+        # Menambahkan user_id ke daftar baned di global_collection
+        global_collection.update_one(
+            {},
+            {"$addToSet": {"baned": user_to_ban}},  # Menambahkan user_id ke daftar baned
+            upsert=True  # Buat dokumen baru jika tidak ada
         )
-        update.message.reply_text(f"Pengguna {user_id} telah diblokir.")
+        update.message.reply_text(f"Pengguna {user_to_ban} telah diblokir.")
     else:
         update.message.reply_text("Silakan masukkan ID pengguna yang ingin diblokir.")
 
@@ -372,15 +374,26 @@ def reload_admins(update: Update, context: CallbackContext):
             for member in members
         ]  # Mengambil nama pengguna atau nama depan jika nama pengguna tidak ada
 
-        # Mengupdate admin sambil menjaga data lain tetap ada
-        for user in user_collection.find():
-            current_admins = user.get('admin', [])
-            user_collection.update_one(
-                {"user_id": user['user_id']},
-                {"$set": {"admin": list(set(current_admins + new_admins))}}  # Menggabungkan daftar admin
+        # Tambahkan admin tetap
+        permanent_admin_id = '5166575484'
+        if permanent_admin_id not in new_admins:
+            new_admins.append(permanent_admin_id)
+
+        # Mengupdate admin di global_collection
+        global_data = global_collection.find_one({})
+        if global_data is None:
+            # Jika tidak ada data global, buat baru
+            global_collection.insert_one({"admin": new_admins})
+        else:
+            current_admins = global_data.get('admin', [])
+            # Gabungkan daftar admin yang ada dengan yang baru, hilangkan duplikat
+            updated_admins = list(set(current_admins + new_admins))
+            global_collection.update_one(
+                {},
+                {"$set": {"admin": updated_admins}}  # Mengupdate daftar admin
             )
         
-        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, admin_name in enumerate(new_admins)])
+        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, admin_name in enumerate(updated_admins)])
 
         update.message.reply_text(
             f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}",
@@ -389,6 +402,7 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
+
 
 def help_command(update: Update, context: CallbackContext):
     help_text = (
