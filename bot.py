@@ -153,47 +153,50 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_html(pesan)
 
 
+# Fungsi untuk mendapatkan statistik
 def show_statistics(update: Update, context: CallbackContext):    
     user_id = update.message.from_user.id
 
-    # Check if the user is an admin
+    # Cek apakah pengguna adalah admin
     if not is_admin(user_id):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
 
-    today = time.strftime("%Y-%m-%d")
+    # Mendapatkan waktu saat ini di Jakarta
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    today = datetime.now(jakarta_tz).strftime("%Y-%m-%d")
+
+    # Mengambil statistik hari ini
     stats = statistics_collection.find_one({"date": today})
-
-    # Fetch total statistics
+    
+    # Mengambil total statistik
     total_stats = statistics_collection.find_one({"total": True})
-
-    # Initialize total_messages to 0 if total_stats is None
     total_messages = total_stats.get("total_messages", 0) if total_stats else 0 
 
     if stats:
         messages_sent_today = stats.get("messages_sent", 0)
         users_count_today = stats.get("users", [])
-        total_users_today = len(users_count_today)  # Total semua pengguna yang mengirim pesan hari ini
+        total_users_today = len(users_count_today)
 
         # Menghitung pesan dalam 7 hari terakhir
         messages_last_7_days = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
-            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
+            "date": {"$gte": (datetime.now(jakarta_tz) - timedelta(days=7)).strftime("%Y-%m-%d")}
         }))
 
         total_users_last_7_days = set()
         for stat in statistics_collection.find({
-            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")}
+            "date": {"$gte": (datetime.now(jakarta_tz) - timedelta(days=7)).strftime("%Y-%m-%d")}
         }):
             total_users_last_7_days.update(stat.get("users", []))
 
         # Menghitung pesan dalam 24 jam terakhir
         messages_last_24_hours = sum(stat.get("messages_sent", 0) for stat in statistics_collection.find({
-            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}
+            "date": {"$gte": (datetime.now(jakarta_tz) - timedelta(hours=24)).strftime("%Y-%m-%d")}
         }))
 
         total_users_last_24_hours = set()
         for stat in statistics_collection.find({
-            "date": {"$gte": (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d")}
+            "date": {"$gte": (datetime.now(jakarta_tz) - timedelta(hours=24)).strftime("%Y-%m-%d")}
         }):
             total_users_last_24_hours.update(stat.get("users", []))
 
@@ -353,7 +356,7 @@ def handle_message(update: Update, context: CallbackContext):
                     sender_id = get_user_id(forward_message_id)  # Pastikan fungsi ini ada
                     context.bot.send_message(
                         chat_id=sender_id,
-                        text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari menfessmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
+                        text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari pesanmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
                         parse_mode='HTML',
                         disable_web_page_preview=True
                     )
