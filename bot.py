@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 from flask import Flask, jsonify
 import threading
@@ -266,26 +266,7 @@ def broadcast(update: Update, context: CallbackContext):
 
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message  # Define msgbot at the start
-    if msgbot.chat.type != 'private':
-        # Cek jika pesan adalah balasan dan diteruskan dari chat
-        if msgbot.reply_to_message and msgbot.reply_to_message.forward_from_chat:
-            original_id = msgbot.reply_to_message.forward_from_chat.id
-            forward_message_id = msgbot.reply_to_message.forward_from_message_id
 
-            # Jika ID pengirim asli cocok dengan MENFES dan bukan ID tertentu
-            if original_id == MENFES and msgbot.from_user.id != 6559871796:
-                try:
-                    sender_id = get_user_id(forward_message_id)  # Pastikan fungsi ini ada
-                    context.bot.send_message(
-                        chat_id=sender_id,
-                        text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari menfessmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
-                        parse_mode='HTML',
-                        disable_web_page_preview=True
-                    )
-                except Exception as error:
-                    print(f"Error: {error}")
-
-    
     if msgbot.chat.type == 'private':            
         add_user(msgbot.from_user.id)
         # Check if the 'jeda' feature is active for all users
@@ -360,7 +341,26 @@ def handle_message(update: Update, context: CallbackContext):
                 else:
                     update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
 
+    else:
+        # Cek jika pesan adalah balasan dan diteruskan dari chat
+        if msgbot.reply_to_message and msgbot.reply_to_message.forward_from_chat:
+            original_id = msgbot.reply_to_message.forward_from_chat.id
+            forward_message_id = msgbot.reply_to_message.forward_from_message_id
 
+            # Jika ID pengirim asli cocok dengan MENFES dan bukan ID tertentu
+            if original_id == MENFES and msgbot.from_user.id != 6559871796:
+                try:
+                    sender_id = get_user_id(forward_message_id)  # Pastikan fungsi ini ada
+                    context.bot.send_message(
+                        chat_id=sender_id,
+                        text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari menfessmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
+                        parse_mode='HTML',
+                        disable_web_page_preview=True
+                    )
+                except Exception as error:
+                    print(f"Error: {error}")
+
+    
 
 def set_jeda(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
