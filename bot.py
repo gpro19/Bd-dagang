@@ -182,17 +182,13 @@ def show_statistics(update: Update, context: CallbackContext):
 
 
 def broadcast(update: Update, context: CallbackContext):
-    user_data = user_collection.find_one({"user_id": update.message.from_user.id})
+    user_id = update.message.from_user.id
 
-    if update.message.from_user.id not in user_data.get('admin', []):
+    # Check if the user is an admin
+    if not is_admin(user_id):
         update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
         return
-
-    message = ' '.join(context.args)
-    if not message:
-        update.message.reply_text("Silahkan masukkan pesan yang ingin dibroadcast.")
-        return
-
+        
     users = list(user_collection.find())
     if not users:
         update.message.reply_text("Tidak ada pengguna yang terdaftar untuk dibroadcast.")
@@ -200,18 +196,36 @@ def broadcast(update: Update, context: CallbackContext):
 
     successful = 0
     failed = 0
+    
+    if update.message.reply_to_message:
+        msgbot = update.message.reply_to_message
+        for user in users:
+            try:
+                context.bot.copy_message(chat_id=user['user_id'], from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
+                successful += 1
+            except Exception as e:
+                failed += 1
+                print(f"Failed to send message to {user['user_id']}: {e}")
+                
+            # Adding a delay to avoid hitting limits
+            time.sleep(0.8)  # Adjust the delay as needed
+    
+    else:
+        message = ' '.join(context.args)
+        if not message:
+            update.message.reply_text("Silahkan masukkan pesan yang ingin dibroadcast.")
+            return
 
-    for user in users:
-        try:
-            context.bot.send_message(chat_id=user['user_id'], text=message)
-            successful += 1
-        except Exception as e:
-            failed += 1
-            print(f"Failed to send message to {user['user_id']}: {e}")
-            context.bot.send_message(chat_id=user_data['admin'][0], text=f"Gagal mengirim pesan ke {user['user_id']}")
-        
-        # Adding a delay to avoid hitting limits
-        time.sleep(0.5)  # Adjust the delay as needed
+        for user in users:
+            try:
+                context.bot.send_message(chat_id=user['user_id'], text=message)
+                successful += 1
+            except Exception as e:
+                failed += 1
+                print(f"Failed to send message to {user['user_id']}: {e}")
+                
+            # Adding a delay to avoid hitting limits
+            time.sleep(0.8)  # Adjust the delay as needed
 
     reply_message = (
         "<b>Status Broadcast:</b>\n"
@@ -220,7 +234,8 @@ def broadcast(update: Update, context: CallbackContext):
     )
 
     update.message.reply_html(reply_message)
-    
+
+
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
     add_user(msgbot.from_user.id)
@@ -402,10 +417,10 @@ def help_command(update: Update, context: CallbackContext):
     help_text = (
         "<b>Daftar Perintah:</b>\n\n"
         "<b>/start</b> - Memulai interaksi dengan bot.\n"
-        "<b>/broadcast [pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
+        "<b>/broadcast [pesan]/[reply pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
         "<b>/jeda</b> - Mengatur status jeda untuk pengiriman pesan.\n"
         "<b>/ban [user_id]</b> - Memblokir pengguna tertentu.\n"
-        "<b>/reload</b> - Memperbarui daftar admin dari grup.\n"
+        "<b>/reload</b> - Memperbarui daftar admin.\n"
         "<b>/stats</b> - Menampilkan statistik pengiriman pesan hari ini.\n"
         "<b>/help</b> - Menampilkan daftar perintah ini.\n\n"        
     )
