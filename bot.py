@@ -353,7 +353,7 @@ def handle_message(update: Update, context: CallbackContext):
                         print(f"user id: {sender_id}")
                         context.bot.send_message(
                             chat_id=sender_id,
-                            text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari pesanmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
+                            text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari pesanmu: <a href='https://t.me/BASEDAGANGAL/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
                             parse_mode='HTML',
                             disable_web_page_preview=True
                         )
