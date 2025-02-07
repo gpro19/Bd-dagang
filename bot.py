@@ -221,7 +221,6 @@ def broadcast(update: Update, context: CallbackContext):
 
     update.message.reply_html(reply_message)
     
-    
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
     add_user(msgbot.from_user.id)
@@ -237,17 +236,18 @@ def handle_message(update: Update, context: CallbackContext):
         nama += ' ' + msgbot.from_user.last_name
     nama = clear_html(nama)
 
-    if msgbot.chat.type == 'private':        
-       # Ambil daftar pengguna yang diblokir
-       bndat = global_data.get('baned', [])
+    if msgbot.chat.type == 'private':
+        # Ambil daftar pengguna yang diblokir
+        bndat = global_data.get('baned', [])
 
-      # Periksa apakah pengguna diblokir
-     if str(msgbot.from_user.id) in bndat:
-         update.message.reply_html("🚫 Anda diblokir dari bot")
-         return
+        # Periksa apakah pengguna diblokir
+        if str(msgbot.from_user.id) in bndat:
+            update.message.reply_html("🚫 Anda diblokir dari bot")
+            return
 
         sub = context.bot.get_chat_member(MENFES, msgbot.from_user.id)
         sub2 = context.bot.get_chat_member(GRUP, msgbot.from_user.id)
+
         if sub.status in ['left', 'kicked'] or sub2.status in ['left', 'kicked']:
             keyb = [
                 [InlineKeyboardButton('Channel Base', url='https://t.me/Basedagangal'),
@@ -293,11 +293,7 @@ def handle_message(update: Update, context: CallbackContext):
                     wkttng = format_duration(3600000 - cw)
                     update.message.reply_html(f'Tunggu <b>{wkttng}</b> lagi, untuk mengirim pesan!')
             else:
-                update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
-
-
-
-
+                update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)    
 
 
 def set_jeda(update: Update, context: CallbackContext):
