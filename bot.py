@@ -6,6 +6,7 @@ import re
 from flask import Flask, jsonify
 import threading
 from pymongo import MongoClient
+import pytz
 
 app = Flask(__name__)
 
@@ -51,7 +52,11 @@ def add_user(user_id):
 
 
 def update_statistics(user_id):
-    today = time.strftime("%Y-%m-%d")  # Mendapatkan tanggal hari ini dalam format YYYY-MM-DD
+     # Mengatur zona waktu Jakarta
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    
+    # Mendapatkan waktu saat ini di Jakarta
+    today = datetime.now(jakarta_tz).strftime("%Y-%m-%d")  # Mendapatkan tanggal hari ini dalam format YYYY-MM-DD 
     statistics_collection.update_one(
         {"date": today},  # Mencocokkan statistik hari ini
         {
@@ -62,7 +67,11 @@ def update_statistics(user_id):
     )
 
 def reset_daily_statistics():
-    today = time.strftime("%Y-%m-%d")
+     # Mengatur zona waktu Jakarta
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    
+    # Mendapatkan waktu saat ini di Jakarta
+    today = datetime.now(jakarta_tz).strftime("%Y-%m-%d")  # Mendapatkan tanggal hari ini dalam format YYYY-MM-DD
     # Resetting or creating a new entry for today’s statistics
     statistics_collection.update_one(
         {"date": today},
