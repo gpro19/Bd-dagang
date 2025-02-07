@@ -237,19 +237,17 @@ def handle_message(update: Update, context: CallbackContext):
         nama += ' ' + msgbot.from_user.last_name
     nama = clear_html(nama)
 
-    if msgbot.chat.type == 'private':
-        
-      # Ambil daftar pengguna yang diblokir
-      bndat = global_data.get('baned', [])
+    if msgbot.chat.type == 'private':        
+       # Ambil daftar pengguna yang diblokir
+       bndat = global_data.get('baned', [])
 
       # Periksa apakah pengguna diblokir
-      if str(msgbot.from_user.id) in bndat:
-          update.message.reply_html("🚫 Anda diblokir dari bot")
-          return
+     if str(msgbot.from_user.id) in bndat:
+         update.message.reply_html("🚫 Anda diblokir dari bot")
+         return
 
         sub = context.bot.get_chat_member(MENFES, msgbot.from_user.id)
         sub2 = context.bot.get_chat_member(GRUP, msgbot.from_user.id)
-
         if sub.status in ['left', 'kicked'] or sub2.status in ['left', 'kicked']:
             keyb = [
                 [InlineKeyboardButton('Channel Base', url='https://t.me/Basedagangal'),
