@@ -22,6 +22,25 @@ db = client['telegram_bot']  # Database name
 user_collection = db['users']  # Collection name for user data
 global_collection = db['global']  # Collection name for global data
 statistics_collection = db['statistics']  # Koleksi untuk menyimpan statistik
+message_senders_collection = db['message_senders']  # Collection for mapping message IDs to user IDs
+
+
+def save_message_sender(message_id, user_id):
+    message_senders_collection.update_one(
+        {"message_id": message_id},
+        {"$set": {"user_id": user_id}},
+        upsert=True  # Create a new document if it doesn't exist
+    )
+
+def get_user_id(message_id):
+    # Query the message_senders collection to find the user ID for the given message ID
+    result = message_senders_collection.find_one({"message_id": message_id})
+    
+    if result and 'user_id' in result:
+        return result['user_id']  # Return the user ID if found
+    else:
+        print("User ID not found for the given message ID.")
+        return None
 
 
 def get_from_cache(user_id, key):
@@ -285,9 +304,10 @@ def handle_message(update: Update, context: CallbackContext):
             if msgbot.chat.type == 'private':
                 pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
                 if pola.search(msgbot.caption):
-                    context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
+                    message_sent = context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                     update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
                     update_statistics(msgbot.from_user.id)  # Update statistics
+                    save_message_sender(message_sent.message_id, msgbot.from_user.id)
                 else:
                     update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
         elif msgbot.text:
@@ -305,9 +325,11 @@ def handle_message(update: Update, context: CallbackContext):
                     if not last_time or (c_time - last_time > 3600000):
                         set_value(msgbot.from_user.id, f'time.last{msgbot.from_user.id}', c_time)
 
-                        context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
+                        message_sent = context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                         update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
                         update_statistics(msgbot.from_user.id)  # Update statistics
+                        # Save message ID and sender ID to the database
+                        save_message_sender(message_sent.message_id, msgbot.from_user.id)
 
                         usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
                         pesan_logs = f"<b>Nama :</b> {msgbot.from_user.first_name} (<code>{msgbot.from_user.id}</code>)\n<b>Username :</b><i> {usn}</i>\n<b>Pesan :</b> <i>{msgbot.text}</i>"
