@@ -213,7 +213,7 @@ def broadcast(update: Update, context: CallbackContext):
     else:
         message = ' '.join(context.args)
         if not message:
-            update.message.reply_text("Silahkan masukkan pesan yang ingin dibroadcast.")
+            update.message.reply_text("Silahkan masukkan pesan/reply pesan yang ingin dibroadcast.")
             return
 
         for user in users:
@@ -385,14 +385,22 @@ def reload_admins(update: Update, context: CallbackContext):
 
         # Tambahkan admin tetap
         permanent_admin_id = '5166575484'  # Developer
-        developer_name = 'developer bot'  # Nama untuk developer
-        if permanent_admin_id not in new_admins:
-            new_admins.append(developer_name)  # Tambahkan nama developer dalam daftar admin
+        developer_name = 'Developer bot'  # Nama untuk developer
+
+        # Pastikan ID developer tidak ada di daftar baru
+        if permanent_admin_id in new_admins:
+            new_admins.remove(permanent_admin_id)  # Hapus ID developer jika ada
+
+        new_admins.append(developer_name)  # Tambahkan nama developer dalam daftar admin
 
         # ID yang tidak dijadikan admin
         excluded_admin_id = '6821877639'
         if excluded_admin_id in new_admins:
             new_admins.remove(excluded_admin_id)
+
+        # Hapus AUTOPOSTBASEDAGANGAL_BOT dari daftar admin
+        if 'AUTOPOSTBASEDAGANGAL_BOT' in new_admins:
+            new_admins.remove('AUTOPOSTBASEDAGANGAL_BOT')
 
         # Mengupdate admin di global_collection
         global_data = global_collection.find_one({})
@@ -417,7 +425,7 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
-
+        
 
 def help_command(update: Update, context: CallbackContext):
     help_text = (
