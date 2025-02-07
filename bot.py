@@ -248,19 +248,19 @@ def broadcast(update: Update, context: CallbackContext):
 def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message
     add_user(msgbot.from_user.id)
-
-    # Check if the 'jeda' feature is active for all users
-    global_data = global_collection.find_one({})
-    if global_data and global_data.get("jeda"):
-        update.message.reply_html("Saat Ini Tidak bisa Mengirim pesan.", reply_to_message_id=msgbot.message_id)
-        return
-
-    nama = msgbot.from_user.first_name
-    if msgbot.from_user.last_name:
-        nama += ' ' + msgbot.from_user.last_name
-    nama = clear_html(nama)
-
+    
     if msgbot.chat.type == 'private':
+        # Check if the 'jeda' feature is active for all users
+        global_data = global_collection.find_one({})
+        if global_data and global_data.get("jeda"):
+            update.message.reply_html("Saat Ini Tidak bisa Mengirim pesan.", reply_to_message_id=msgbot.message_id)
+            return
+
+        nama = msgbot.from_user.first_name
+        if msgbot.from_user.last_name:
+            nama += ' ' + msgbot.from_user.last_name
+        nama = clear_html(nama)
+
         # Ambil daftar pengguna yang diblokir
         bndat = global_data.get('baned', [])
 
@@ -281,43 +281,44 @@ def handle_message(update: Update, context: CallbackContext):
             update.message.reply_html("Tidak dapat diakses harap join terlebih dahulu", reply_markup=InlineKeyboardMarkup(keyb))
             return
 
-    if msgbot.photo:
-        if msgbot.chat.type == 'private':
-            pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
-            if pola.search(msgbot.caption):
-                context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
-                update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
-                update_statistics(msgbot.from_user.id)  # Update statistics
-            else:
-                update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
-    elif msgbot.text:
-        if msgbot.chat.type == 'private':
-            pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
-            if pola.search(msgbot.text):
-                user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
-                if global_data and global_data.get('jeda'):
-                    update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
-                    return
-
-                c_time = int(time.time() * 1000)
-                last_time = user_data['time'].get(f'last{msgbot.from_user.id}')
-
-                if not last_time or (c_time - last_time > 3600000):
-                    set_value(msgbot.from_user.id, f'time.last{msgbot.from_user.id}', c_time)
-
+        if msgbot.photo:
+            if msgbot.chat.type == 'private':
+                pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
+                if pola.search(msgbot.caption):
                     context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                     update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
                     update_statistics(msgbot.from_user.id)  # Update statistics
-
-                    usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
-                    pesan_logs = f"<b>Nama :</b> {msgbot.from_user.first_name} (<code>{msgbot.from_user.id}</code>)\n<b>Username :</b><i> {usn}</i>\n<b>Pesan :</b> <i>{msgbot.text}</i>"
-                    context.bot.send_message(chat_id=BOTLOGS, text=pesan_logs, parse_mode='HTML')
                 else:
-                    cw = c_time - last_time
-                    wkttng = format_duration(3600000 - cw)
-                    update.message.reply_html(f'Tunggu <b>{wkttng}</b> lagi, untuk mengirim pesan!')
-            else:
-                update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)    
+                    update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
+        elif msgbot.text:
+            if msgbot.chat.type == 'private':
+                pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
+                if pola.search(msgbot.text):
+                    user_data = user_collection.find_one({"user_id": msgbot.from_user.id})
+                    if global_data and global_data.get('jeda'):
+                        update.message.reply_html("Saat ini tidak bisa mengirim pesan karena jeda diaktifkan.")
+                        return
+
+                    c_time = int(time.time() * 1000)
+                    last_time = user_data['time'].get(f'last{msgbot.from_user.id}')
+
+                    if not last_time or (c_time - last_time > 3600000):
+                        set_value(msgbot.from_user.id, f'time.last{msgbot.from_user.id}', c_time)
+
+                        context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
+                        update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
+                        update_statistics(msgbot.from_user.id)  # Update statistics
+
+                        usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
+                        pesan_logs = f"<b>Nama :</b> {msgbot.from_user.first_name} (<code>{msgbot.from_user.id}</code>)\n<b>Username :</b><i> {usn}</i>\n<b>Pesan :</b> <i>{msgbot.text}</i>"
+                        context.bot.send_message(chat_id=BOTLOGS, text=pesan_logs, parse_mode='HTML')
+                    else:
+                        cw = c_time - last_time
+                        wkttng = format_duration(3600000 - cw)
+                        update.message.reply_html(f'Tunggu <b>{wkttng}</b> lagi, untuk mengirim pesan!')
+                else:
+                    update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
+
 
 
 def set_jeda(update: Update, context: CallbackContext):
@@ -398,7 +399,7 @@ def reload_admins(update: Update, context: CallbackContext):
             new_admins.append(permanent_admin_id)
 
         # ID yang tidak dijadikan admin
-        excluded_admin_id = '6821877639'
+        excluded_admin_id = '6821877639'  # AUTOPOSTBASEDAGANGAL_BOT
         if excluded_admin_id in new_admins:
             new_admins.remove(excluded_admin_id)
 
@@ -416,7 +417,10 @@ def reload_admins(update: Update, context: CallbackContext):
                 {"$set": {"admin": updated_admins}}  # Mengupdate daftar admin
             )
         
-        admin_list = '\n'.join([f"{i + 1}. {admin_name}" for i, admin_name in enumerate(updated_admins)])
+        admin_list = '\n'.join([
+            f"{i + 1}. {'Developer Bot' if admin_name == permanent_admin_id else admin_name}"
+            for i, admin_name in enumerate(updated_admins)
+        ])
 
         update.message.reply_text(
             f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}",
@@ -425,21 +429,7 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Error while reloading admins: {e}")
-
-def help_command(update: Update, context: CallbackContext):
-    help_text = (
-        "<b>Daftar Perintah:</b>\n\n"
-        "<b>/start</b> - Memulai interaksi dengan bot.\n"
-        "<b>/broadcast [pesan]/[reply pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
-        "<b>/jeda</b> - Mengatur status jeda untuk pengiriman pesan.\n"
-        "<b>/ban [user_id]</b> - Memblokir pengguna tertentu.\n"
-        "<b>/reload</b> - Memperbarui daftar admin.\n"
-        "<b>/stats</b> - Menampilkan statistik pengiriman pesan hari ini.\n"
-        "<b>/help</b> - Menampilkan daftar perintah ini.\n\n"        
-    )
-    
-    update.message.reply_html(help_text)
-    
+        
     
 @app.route('/')
 def index():
