@@ -384,9 +384,15 @@ def reload_admins(update: Update, context: CallbackContext):
         ]  # Mengambil nama pengguna atau nama depan jika nama pengguna tidak ada
 
         # Tambahkan admin tetap
-        permanent_admin_id = '5166575484'
+        permanent_admin_id = '5166575484'  # Developer
+        developer_name = 'developer bot'  # Nama untuk developer
         if permanent_admin_id not in new_admins:
-            new_admins.append(permanent_admin_id)
+            new_admins.append(developer_name)  # Tambahkan nama developer dalam daftar admin
+
+        # ID yang tidak dijadikan admin
+        excluded_admin_id = '6821877639'
+        if excluded_admin_id in new_admins:
+            new_admins.remove(excluded_admin_id)
 
         # Mengupdate admin di global_collection
         global_data = global_collection.find_one({})
