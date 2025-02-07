@@ -271,10 +271,9 @@ def handle_message(update: Update, context: CallbackContext):
     msgbot = update.message  # Ensure msgbot is assigned from update.message
     if msgbot is None:
         return  # Handle the case when msgbot is None
- 
-    if msgbot.chat.type == 'private':            
+
+    if msgbot.chat.type == 'private':
         add_user(msgbot.from_user.id)
-        # Check if the 'jeda' feature is active for all users
         global_data = global_collection.find_one({})
         if global_data and global_data.get("jeda"):
             update.message.reply_html("Saat Ini Tidak bisa Mengirim pesan.", reply_to_message_id=msgbot.message_id)
@@ -285,10 +284,7 @@ def handle_message(update: Update, context: CallbackContext):
             nama += ' ' + msgbot.from_user.last_name
         nama = clear_html(nama)
 
-        # Ambil daftar pengguna yang diblokir
         bndat = global_data.get('baned', [])
-
-        # Periksa apakah pengguna diblokir
         if str(msgbot.from_user.id) in bndat:
             update.message.reply_html("🚫 Anda diblokir dari bot")
             return
@@ -308,10 +304,10 @@ def handle_message(update: Update, context: CallbackContext):
         if msgbot.photo:
             if msgbot.chat.type == 'private':
                 pola = re.compile(r'(#belial|#tradeal)', re.IGNORECASE)
-                if pola.search(msgbot.caption):
+                if pola.search(msgbot.caption or ""):  # Ensure caption is checked correctly
                     message_sent = context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                     update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
-                    update_statistics(msgbot.from_user.id)  # Update statistics
+                    update_statistics(msgbot.from_user.id)
                     save_message_sender(message_sent.message_id, msgbot.from_user.id)
                 else:
                     update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n\n#belial #tradeal")
@@ -325,15 +321,14 @@ def handle_message(update: Update, context: CallbackContext):
                         return
 
                     c_time = int(time.time() * 1000)
-                    last_time = user_data['time'].get(f'last{msgbot.from_user.id}')
+                    last_time = user_data['time'].get(f'last{msgbot.from_user.id}') if user_data else None
 
                     if not last_time or (c_time - last_time > 3600000):
                         set_value(msgbot.from_user.id, f'time.last{msgbot.from_user.id}', c_time)
 
                         message_sent = context.bot.copy_message(chat_id=MENFES, from_chat_id=msgbot.chat.id, message_id=msgbot.message_id, caption=msgbot.caption)
                         update.message.reply_html('Pesan berhasil terkirim!', reply_to_message_id=msgbot.message_id)
-                        update_statistics(msgbot.from_user.id)  # Update statistics
-                        # Save message ID and sender ID to the database
+                        update_statistics(msgbot.from_user.id)
                         save_message_sender(message_sent.message_id, msgbot.from_user.id)
 
                         usn = f"@{msgbot.from_user.username}" if msgbot.from_user.username else "tidak ada username"
@@ -347,23 +342,23 @@ def handle_message(update: Update, context: CallbackContext):
                     update.message.reply_html(f"{nama}, pesanmu gagal terkirim silahkan gunakan hastag:\n#belial #tradeal", reply_to_message_id=msgbot.message_id)
 
     else:
-        # Cek jika pesan adalah balasan dan diteruskan dari chat
         if msgbot.reply_to_message and msgbot.reply_to_message.forward_from_chat:
             original_id = msgbot.reply_to_message.forward_from_chat.id
             forward_message_id = msgbot.reply_to_message.forward_from_message_id
 
-            # Jika ID pengirim asli cocok dengan MENFES dan bukan ID tertentu
-            if original_id == MENFES and msgbot.from_user.id != 6559871796:
-                try:
-                    sender_id = get_user_id(forward_message_id)  # Pastikan fungsi ini ada
-                    context.bot.send_message(
-                        chat_id=sender_id,
-                        text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari pesanmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
-                        parse_mode='HTML',
-                        disable_web_page_preview=True
-                    )
-                except Exception as error:
-                    print(f"Error: {error}")
+            if original_id == -1001247979116:
+                if msgbot.from_user.id != 6559871796:
+                    try:
+                        sender_id = get_user_id(forward_message_id)
+                        print(f"user id: {sender_id}")
+                        context.bot.send_message(
+                            chat_id=sender_id,
+                            text=f"<b>Notifikasi</b> 🔔\nSeseorang mengomentari pesanmu: <a href='https://t.me/BASEDAGANGALGRUP/{forward_message_id}?comment={msgbot.message_id}'>check komen</a>",
+                            parse_mode='HTML',
+                            disable_web_page_preview=True
+                        )
+                    except Exception as error:
+                        print(f"Error: {error}")
 
     
 
@@ -482,7 +477,7 @@ def help_command(update: Update, context: CallbackContext):
         "<b>Daftar Perintah:</b>\n\n"
         "<b>/start</b> - Memulai interaksi dengan bot.\n"
         "<b>/broadcast [pesan]/[reply pesan]</b> - Mengirim pesan ke semua pengguna terdaftar.\n"
-        "<b>/jeda</b> - Mengatur status jeda untuk pengiriman pesan.\n"
+        "<b>/jeda | /jeda_on | /jeda_off</b> - Mengatur jeda untuk pengiriman pesan.\n"
         "<b>/ban [user_id]</b> - Memblokir pengguna tertentu.\n"
         "<b>/reload</b> - Memperbarui daftar admin.\n"
         "<b>/stats</b> - Menampilkan statistik pengiriman pesan hari ini.\n"
@@ -490,6 +485,28 @@ def help_command(update: Update, context: CallbackContext):
     )
     
     update.message.reply_html(help_text)
+
+def jeda_on(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+
+    # Check if the user is an admin
+    if not is_admin(user_id):
+        update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
+        return
+
+    global_collection.update_one({}, {"$set": {"jeda": True}}, upsert=True)
+    update.message.reply_text("Fitur jeda sekarang aktif untuk semua pengguna.")
+
+def jeda_off(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+
+    # Check if the user is an admin
+    if not is_admin(user_id):
+        update.message.reply_text("Hanya admin yang dapat menggunakan perintah ini.")
+        return
+
+    global_collection.update_one({}, {"$set": {"jeda": False}}, upsert=True)
+    update.message.reply_text("Fitur jeda sekarang nonaktif untuk semua pengguna.")
 
 
 
@@ -507,6 +524,8 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("broadcast", broadcast))
     dp.add_handler(CommandHandler("jeda", set_jeda))
+    dp.add_handler(CommandHandler("jeda_on", jeda_on))
+    dp.add_handler(CommandHandler("jeda_off", jeda_off))
     dp.add_handler(CommandHandler("ban", ban_user))
     dp.add_handler(CommandHandler("reload", reload_admins))
     dp.add_handler(CommandHandler("stats", show_statistics))
