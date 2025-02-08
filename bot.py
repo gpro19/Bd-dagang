@@ -99,11 +99,6 @@ def reset_daily_statistics():
     )
 
 
-def is_admin(user_id):
-    global_data = global_collection.find_one({})
-    if global_data and 'admin' in global_data:
-        return str(user_id) in global_data['admin']
-    return False
 
 def clear_html(text):
     return text
@@ -428,6 +423,7 @@ def ban_user(update: Update, context: CallbackContext):
 
 def reload_admins(update: Update, context: CallbackContext):
     try:
+        # Mengambil daftar administrator dari chat
         members = context.bot.get_chat_administrators(MENFES)
         new_admins = [
             member.user.username if member.user.username else member.user.first_name 
@@ -435,19 +431,19 @@ def reload_admins(update: Update, context: CallbackContext):
         ]  # Mengambil nama pengguna atau nama depan jika nama pengguna tidak ada
 
         # Tambahkan admin tetap
-        permanent_admin_id = '5166575484'  # Developer
+        permanent_admin_id = '5166575484'  # ID Developer
         if permanent_admin_id not in new_admins:
             new_admins.append(permanent_admin_id)
 
         # ID yang tidak dijadikan admin
-        excluded_admin_id = '6821877639'  # AUTOPOSTBASEDAGANGAL_BOT
+        excluded_admin_id = '6821877639'  # ID AUTOPOSTBASEDAGANGAL_BOT
         if excluded_admin_id in new_admins:
             new_admins.remove(excluded_admin_id)
 
         # Mengupdate admin di global_collection
         global_data = global_collection.find_one({})
         if global_data is None:
-            # Jika tidak ada data global, buat baru
+            # Jika tidak ada data global, buat entri baru
             global_collection.insert_one({"admin": new_admins})
         else:
             current_admins = global_data.get('admin', [])
@@ -458,19 +454,27 @@ def reload_admins(update: Update, context: CallbackContext):
                 {"$set": {"admin": updated_admins}}  # Mengupdate daftar admin
             )
         
+        # Menyusun daftar admin untuk balasan
         admin_list = '\n'.join([
             f"{i + 1}. {'Developer Bot' if admin_name == permanent_admin_id else admin_name}"
             for i, admin_name in enumerate(updated_admins)
         ])
 
+        # Mengirim pesan dengan daftar admin yang telah diperbarui
         update.message.reply_text(
             f"<b>Daftar admin telah diperbarui:</b>\n{admin_list}",
             parse_mode="HTML"  # Menyertakan HTML untuk format teks
         )
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
-        print(f"Error while reloading admins: {e}")
+        print(f"Kesalahan saat memuat ulang admin: {e}")
 
+# Fungsi untuk memeriksa apakah pengguna adalah admin
+def is_admin(user_id):
+    global_data = global_collection.find_one({})
+    if global_data and 'admin' in global_data:
+        return str(user_id) in global_data['admin']  # Memeriksa apakah ID pengguna ada di daftar admin
+    return False
 
 def help_command(update: Update, context: CallbackContext):
     help_text = (
