@@ -425,39 +425,41 @@ def reload_admins(update: Update, context: CallbackContext):
     try:
         # Mengambil daftar administrator dari chat
         members = context.bot.get_chat_administrators(MENFES)
-        new_admins = [
-            member.user.username if member.user.username else member.user.first_name 
-            for member in members
-        ]  # Mengambil nama pengguna atau nama depan jika nama pengguna tidak ada
+        new_admins = []
+        
+        for member in members:
+            user_id = str(member.user.id)  # Mengambil ID pengguna sebagai string
+            user_name = member.user.username if member.user.username else member.user.first_name
+            new_admins.append((user_id, user_name))  # Menyimpan tuple (ID, Nama)
 
         # Tambahkan admin tetap
         permanent_admin_id = '5166575484'  # ID Developer
-        if permanent_admin_id not in new_admins:
-            new_admins.append(permanent_admin_id)
+        if permanent_admin_id not in [admin[0] for admin in new_admins]:
+            new_admins.append((permanent_admin_id, "Developer Bot"))
 
         # ID yang tidak dijadikan admin
         excluded_admin_id = '6821877639'  # ID AUTOPOSTBASEDAGANGAL_BOT
-        if excluded_admin_id in new_admins:
-            new_admins.remove(excluded_admin_id)
+        new_admins = [admin for admin in new_admins if admin[0] != excluded_admin_id]
 
         # Mengupdate admin di global_collection
         global_data = global_collection.find_one({})
         if global_data is None:
             # Jika tidak ada data global, buat entri baru
-            global_collection.insert_one({"admin": new_admins})
+            global_collection.insert_one({"admin": [admin[0] for admin in new_admins]})
         else:
+            # Hanya simpan ID admin
             current_admins = global_data.get('admin', [])
             # Gabungkan daftar admin yang ada dengan yang baru, hilangkan duplikat
-            updated_admins = list(set(current_admins + new_admins))
+            updated_admins = list(set(current_admins + [admin[0] for admin in new_admins]))
             global_collection.update_one(
                 {},
                 {"$set": {"admin": updated_admins}}  # Mengupdate daftar admin
             )
-        
+
         # Menyusun daftar admin untuk balasan
         admin_list = '\n'.join([
-            f"{i + 1}. {'Developer Bot' if admin_name == permanent_admin_id else admin_name}"
-            for i, admin_name in enumerate(updated_admins)
+            f"{i + 1}. {admin[1]}"  # Menampilkan nama admin
+            for i, admin in enumerate(new_admins)
         ])
 
         # Mengirim pesan dengan daftar admin yang telah diperbarui
@@ -468,6 +470,7 @@ def reload_admins(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text("Gagal memperbarui daftar admin.")
         print(f"Kesalahan saat memuat ulang admin: {e}")
+
 
 # Fungsi untuk memeriksa apakah pengguna adalah admin
 def is_admin(user_id):
