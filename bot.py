@@ -525,7 +525,8 @@ def run_flask():
     app.run(host='0.0.0.0', port=8000)
 
 def main():
-    updater = Updater("6821877639:AAGEFkSaYVYaGiroIDFlnOSaKZ1wZxfQTL8", use_context=True)
+    #updater = Updater("6821877639:AAGEFkSaYVYaGiroIDFlnOSaKZ1wZxfQTL8", use_context=True)
+    updater = Updater("7515743847:AAEu5xj47eIJ5blvKPIRZr0Va_e1w0JkLM8", use_context=True)
 
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
